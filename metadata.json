@@ -1,0 +1,5 @@
+{
+  "name": "Faceless AI Studio",
+  "description": "A Canvas-based video editor that uses simulated AI to generate scripts, voiceovers, and video footage. It features karaoke-style captions, visual filters, and a video export function.",
+  "requestFramePermissions": []
+}
