@@ -50,52 +50,84 @@ export const CanvasVideoEditor: React.FC<CanvasVideoEditorProps> = ({
         
         const filterMap: Record<Filter, string> = { 
             'None': 'none', 
-            'Noir': 'grayscale(100%) contrast(1.2)', 
-            'Vintage': 'sepia(60%) contrast(0.9) brightness(1.1)' 
+            'Noir': 'grayscale(100%) contrast(1.5)', 
+            'Vintage': 'sepia(60%) contrast(0.9) brightness(1.2)' 
         };
         ctx.filter = filterMap[filter] || 'none';
         
-        // Draw main video
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        ctx.filter = 'none';
-
-        // Auto-Reframing Visual Guide (Subtle safe zone)
+        // --- DRAW VIDEO WITH REFRAMING ---
         if (media.activeFeatures.autoReframing) {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(canvas.width * 0.05, canvas.height * 0.05, canvas.width * 0.9, canvas.height * 0.9);
+            // Simulated Follow-Crosshair logic: Shift crop slightly based on time
+            const shift = Math.sin(audio.currentTime * 2) * 50;
+            ctx.drawImage(video, 
+                (video.videoWidth / 2) - 150 + shift, 200, 300, 533, 
+                0, 0, canvas.width, canvas.height 
+            );
+        } else {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         }
+        ctx.filter = 'none';
 
         const scaleFactor = canvas.width / BASE_WIDTH;
         const currentTime = audio.currentTime;
+
+        // --- DRAW MEME OVERLAYS ---
+        if (media.activeFeatures.onScreenMemes) {
+            media.instruction.memes.forEach(meme => {
+                if (currentTime >= meme.startTimeSeconds && currentTime <= meme.endTimeSeconds) {
+                    ctx.font = `900 ${70 * scaleFactor}px Impact`;
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#FACC15'; // yellow-400
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 10 * scaleFactor;
+
+                    const yPos = meme.positionHint === 'top' ? 200 : meme.positionHint === 'center' ? canvas.height / 2 : canvas.height - 300;
+                    ctx.strokeText(meme.text, canvas.width / 2, yPos);
+                    ctx.fillText(meme.text, canvas.width / 2, yPos);
+                }
+            });
+        }
+
+        // --- DRAW CAPTIONS ---
         const currentLine = media.captions[0];
-        
-        // Memes Mode Font Upgrade
-        const isMemesMode = media.activeFeatures.onScreenMemes;
-        ctx.font = `bold ${isMemesMode ? 64 : 48 * scaleFactor}px ${isMemesMode ? 'Impact, Arial' : 'Arial'}`;
+        ctx.font = `bold ${42 * scaleFactor}px "Arial Black", sans-serif`;
         ctx.textAlign = 'center';
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 8 * scaleFactor;
         
         const x = canvas.width / 2;
-        const y = canvas.height - (100 * scaleFactor);
+        const y = canvas.height - (180 * scaleFactor);
         const lineMetrics = ctx.measureText(currentLine.line);
         let currentX = x - lineMetrics.width / 2;
 
         currentLine.words.forEach(({ word, start, end }) => {
-            ctx.fillStyle = (currentTime >= start && currentTime < end) ? '#FBBF24' : 'white';
+            const isActive = currentTime >= start && currentTime < end;
+            ctx.fillStyle = isActive ? '#22C55E' : 'white'; 
             const wordWidthWithSpace = ctx.measureText(word + ' ').width;
-            ctx.strokeText(word, currentX + (wordWidthWithSpace - ctx.measureText(' ').width) / 2, y);
-            ctx.fillText(word, currentX + (wordWidthWithSpace - ctx.measureText(' ').width) / 2, y);
+            
+            if (isActive) {
+                ctx.save();
+                ctx.scale(1.1, 1.1);
+                ctx.strokeText(word, (currentX + (wordWidthWithSpace - ctx.measureText(' ').width) / 2) / 1.1, y / 1.1);
+                ctx.fillText(word, (currentX + (wordWidthWithSpace - ctx.measureText(' ').width) / 2) / 1.1, y / 1.1);
+                ctx.restore();
+            } else {
+                ctx.strokeText(word, currentX + (wordWidthWithSpace - ctx.measureText(' ').width) / 2, y);
+                ctx.fillText(word, currentX + (wordWidthWithSpace - ctx.measureText(' ').width) / 2, y);
+            }
             currentX += wordWidthWithSpace;
         });
+
+        // HUD overlay
+        ctx.strokeStyle = 'rgba(34, 197, 94, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
         
         animationFrameId.current = requestAnimationFrame(draw);
     }, [media, filter]);
 
     useEffect(() => {
-        const video = videoRef.current;
-        const audio = audioRef.current;
+        const video = videoRef.current; const audio = audioRef.current;
         video.crossOrigin = "anonymous"; video.muted = true; video.loop = true;
         audio.crossOrigin = "anonymous";
         if (media) { video.src = media.videoUrl; audio.src = media.audioUrl; } 
@@ -113,13 +145,11 @@ export const CanvasVideoEditor: React.FC<CanvasVideoEditorProps> = ({
     useEffect(() => {
         if (isExporting && media && canvasRef.current) {
             const canvas = canvasRef.current;
-            const originalWidth = canvas.width;
-            const originalHeight = canvas.height;
+            const originalWidth = canvas.width; const originalHeight = canvas.height;
             const { width: exportWidth, height: exportHeight } = resolutions[exportOptions.resolution];
             canvas.width = exportWidth; canvas.height = exportHeight;
 
-            const speechAudio = audioRef.current;
-            speechAudio.currentTime = 0;
+            const speechAudio = audioRef.current; speechAudio.currentTime = 0;
             const audioContext = new AudioContext();
             const destination = audioContext.createMediaStreamDestination();
             const speechSource = audioContext.createMediaElementSource(speechAudio);
@@ -134,7 +164,7 @@ export const CanvasVideoEditor: React.FC<CanvasVideoEditorProps> = ({
             }
 
             const mimeType = exportOptions.format === 'mp4' ? 'video/mp4' : 'video/webm; codecs=vp9,opus';
-            const combinedStream = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...destination.stream.getAudioTracks()]);
+            const combinedStream = new MediaStream([...canvas.captureStream(60).getVideoTracks(), ...destination.stream.getAudioTracks()]);
             mediaRecorderRef.current = new MediaRecorder(combinedStream, { mimeType });
             recordedChunks.current = [];
             mediaRecorderRef.current.ondataavailable = (e) => e.data.size > 0 && recordedChunks.current.push(e.data);
@@ -142,8 +172,7 @@ export const CanvasVideoEditor: React.FC<CanvasVideoEditorProps> = ({
             mediaRecorderRef.current.onstop = () => {
                 const blob = new Blob(recordedChunks.current, { type: mimeType });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = `faceless-ai-video.${exportOptions.format}`; a.click();
+                const a = document.createElement('a'); a.href = url; a.download = `warzone-short.${exportOptions.format}`; a.click();
                 URL.revokeObjectURL(url); audioContext.close();
                 canvas.width = originalWidth; canvas.height = originalHeight;
                 onExportComplete();
@@ -160,29 +189,22 @@ export const CanvasVideoEditor: React.FC<CanvasVideoEditorProps> = ({
     }, [isExporting, media, backgroundMusic, exportOptions, draw, onExportProgress, onExportComplete]);
 
     return (
-        <div className="aspect-[9/16] w-full max-w-full bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-2 relative group overflow-hidden">
-            <canvas ref={canvasRef} width={BASE_WIDTH} height={BASE_HEIGHT} className="rounded-lg w-full h-full object-contain" />
+        <div className="aspect-[9/16] w-full max-w-full bg-black/80 backdrop-blur-3xl rounded-3xl border border-white/10 p-2 relative group overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.8)]">
+            <canvas ref={canvasRef} width={BASE_WIDTH} height={BASE_HEIGHT} className="rounded-2xl w-full h-full object-contain" />
             
-            {/* Real-time Status Overlay */}
-            <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md text-white/90 px-3 py-1.5 rounded-lg text-xs font-mono border border-white/10 shadow-lg pointer-events-none flex items-center gap-2 z-10">
-                <div className={`w-2 h-2 rounded-full ${isExporting ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
-                <span>{exportOptions.format.toUpperCase()}</span>
-                <span className="text-white/40">|</span>
-                <span>{exportOptions.resolution}</span>
+            <div className="absolute top-6 right-6 flex flex-col items-end gap-2 z-10">
+                <div className="bg-black/90 backdrop-blur-md text-white/90 px-3 py-1.5 rounded font-mono text-[10px] border border-white/20 flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${isExporting ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
+                    <span>{exportOptions.resolution}</span>
+                    <span className="opacity-40">|</span>
+                    <span>{exportOptions.format.toUpperCase()}</span>
+                </div>
             </div>
 
-            {/* Active Features Badges */}
             {media && (
-                <div className="absolute top-4 left-4 flex flex-col gap-1 z-10">
-                    {media.activeFeatures.hypeCommentary && (
-                        <div className="px-2 py-0.5 bg-pink-500/80 text-[8px] font-bold text-white rounded uppercase tracking-tighter shadow-sm">AI HYPE ACTIVE</div>
-                    )}
-                    {media.activeFeatures.autoReframing && (
-                        <div className="px-2 py-0.5 bg-blue-500/80 text-[8px] font-bold text-white rounded uppercase tracking-tighter shadow-sm">REFRAMED 9:16</div>
-                    )}
-                    {media.activeFeatures.onScreenMemes && (
-                        <div className="px-2 py-0.5 bg-yellow-500/80 text-[8px] font-bold text-black rounded uppercase tracking-tighter shadow-sm">MEME FONT ACTIVE</div>
-                    )}
+                <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
+                    <div className="px-3 py-1 bg-green-500 text-[10px] font-black text-black rounded uppercase tracking-tighter shadow-lg">ORCHESTRATOR v2.5</div>
+                    <div className="px-3 py-1 bg-purple-600/90 text-[10px] font-black text-white rounded uppercase tracking-tighter">TONE: {media.activeFeatures.tonePreset.toUpperCase()}</div>
                 </div>
             )}
         </div>

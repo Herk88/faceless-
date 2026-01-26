@@ -16,12 +16,60 @@ export interface CaptionLine {
     words: CaptionWord[];
 }
 
+export type TonePreset = "aggressive" | "chill" | "cracked-movement";
+
+export interface OrchestrationInstruction {
+  highlight: {
+    sourceFileId: string;
+    startTimeSeconds: number;
+    endTimeSeconds: number;
+    reason: string;
+  };
+  reframing: {
+    enabled: boolean;
+    strategy: "static_center" | "follow_crosshair";
+    cropKeyframes: {
+      timeSeconds: number;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }[];
+  };
+  voiceover: {
+    enabled: boolean;
+    script: string;
+    startTimeSeconds: number;
+    endTimeSeconds: number;
+    tone: string;
+  };
+  captions: {
+    startTimeSeconds: number;
+    endTimeSeconds: number;
+    text: string;
+    highlightWords: string[];
+  }[];
+  memes: {
+    enabled: boolean;
+    startTimeSeconds: number;
+    endTimeSeconds: number;
+    text: string;
+    positionHint: "top" | "bottom" | "left" | "right" | "center";
+  }[];
+  tiktok: {
+    captionText: string;
+    primaryTags: string[];
+    secondaryTags: string[];
+  };
+}
+
 export interface GeneratedMedia {
     script: VideoScript;
     videoUrl: string;
     audioUrl: string;
     captions: CaptionLine[];
     activeFeatures: AutomationFeatures;
+    instruction: OrchestrationInstruction;
 }
 
 export type Filter = 'None' | 'Noir' | 'Vintage';
@@ -45,6 +93,7 @@ export interface AutomationFeatures {
     hypeCommentary: boolean;
     onScreenMemes: boolean;
     autoReframing: boolean;
+    tonePreset: TonePreset;
 }
 
 export interface VideoTemplate {

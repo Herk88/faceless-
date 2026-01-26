@@ -1,48 +1,39 @@
 
-import { useState, useCallback } from 'react';
-import type { GeneratedMedia, Filter, EngineState, LoadingStep, ExportOptions, VideoTemplate, AutomationFeatures } from './types';
+import { useState } from 'react';
+import type { 
+    GeneratedMedia, Filter, EngineState, LoadingStep, ExportOptions, 
+    VideoTemplate, AutomationFeatures, OrchestrationInstruction, TonePreset 
+} from './types';
 
-const VIDEO_TEMPLATE_LIBRARY: VideoTemplate[] = [
+const WARZONE_ASSET_LIBRARY: VideoTemplate[] = [
     {
-        id: 'vt_001',
-        url: 'https://videos.pexels.com/video-files/853878/853878-sd_540_960_30fps.mp4',
-        tags: ['space', 'galaxy', 'stars', 'cosmic', 'nebula'],
-        description: 'A mesmerizing flight through a colorful cosmic nebula.'
+        id: 'clip_squadwipe_01',
+        url: 'https://videos.pexels.com/video-files/2873335/2873335-sd_540_960_25fps.mp4',
+        tags: ['squadwipe', 'warzone', 'highlight', 'movement'],
+        description: 'Intense 1v3 squad wipe in Superstore.'
     },
     {
-        id: 'vt_002',
-        url: 'https://videos.pexels.com/video-files/2099392/2099392-sd_540_960_25fps.mp4',
-        tags: ['rome', 'ancient', 'history', 'colosseum', 'empire'],
-        description: 'Cinematic shot of the Roman Colosseum at sunset.'
+        id: 'clip_sniper_02',
+        url: 'https://videos.pexels.com/video-files/2873341/2873341-sd_540_960_25fps.mp4',
+        tags: ['sniper', 'longrange', 'warzone'],
+        description: '500m Kar98k headshot out of a helicopter.'
     },
     {
-        id: 'vt_003',
-        url: 'https://videos.pexels.com/video-files/8327918/8327918-sd_540_960_25fps.mp4',
-        tags: ['robot', 'lonely', 'sad', 'cute', 'tech'],
-        description: 'A small, cute robot looking out a window on a rainy day.'
+        id: 'clip_clutch_03',
+        url: 'https://videos.pexels.com/video-files/2873343/2873343-sd_540_960_25fps.mp4',
+        tags: ['clutch', 'win', 'final-circle'],
+        description: 'Gas mask play for the final kill win.'
     }
 ];
 
-const findBestTemplate = (prompt: string): VideoTemplate | null => {
+const matchGameplay = (prompt: string): VideoTemplate => {
     const promptWords = prompt.toLowerCase().split(/\s+/);
-    for (const template of VIDEO_TEMPLATE_LIBRARY) {
-        for (const tag of template.tags) {
-            if (promptWords.includes(tag)) return template;
+    for (const asset of WARZONE_ASSET_LIBRARY) {
+        for (const tag of asset.tags) {
+            if (promptWords.includes(tag)) return asset;
         }
     }
-    return null;
-};
-
-const withRetry = async <T,>(fn: () => Promise<T>, retries = 3): Promise<T> => {
-    let attempt = 0;
-    while (attempt < retries) {
-        try { return await fn(); } catch (error: any) {
-            attempt++;
-            if (!error.isTransient || attempt >= retries) throw error;
-            await new Promise(res => setTimeout(res, 1000 * Math.pow(2, attempt)));
-        }
-    }
-    throw new Error('Retries exhausted');
+    return WARZONE_ASSET_LIBRARY[0];
 };
 
 export const useVideoEngine = () => {
@@ -59,12 +50,20 @@ export const useVideoEngine = () => {
         exportOptions: { format: 'mp4', resolution: '540p' },
         projectSettings: {
             hypeCommentary: true,
-            onScreenMemes: false,
+            onScreenMemes: true,
             autoReframing: true,
+            tonePreset: "aggressive"
         }
     });
 
-    const toggleFeature = (feature: keyof AutomationFeatures) => {
+    const setTonePreset = (tone: TonePreset) => {
+        setState(prev => ({
+            ...prev,
+            projectSettings: { ...prev.projectSettings, tonePreset: tone }
+        }));
+    };
+
+    const toggleFeature = (feature: keyof Omit<AutomationFeatures, 'tonePreset'>) => {
         setState(prev => ({
             ...prev,
             projectSettings: {
@@ -78,41 +77,81 @@ export const useVideoEngine = () => {
         setState(prev => ({ ...prev, isLoading: true, loadingStep: 'idle', error: null, generatedMedia: null, isPlaying: false }));
         
         try {
-            const media = await withRetry(async () => {
-                setState(prev => ({ ...prev, loadingStep: 'script' }));
-                await new Promise(r => setTimeout(r, 800));
+            // STEP 1: SCRIPTING
+            setState(prev => ({ ...prev, loadingStep: 'script' }));
+            await new Promise(r => setTimeout(r, 1000));
+            
+            const tone = state.projectSettings.tonePreset;
+            const script = {
+                hook: tone === "aggressive" ? "BRO, they literally thought they were safe!" : "Check out this insane rotation for the win.",
+                body: tone === "aggressive" ? "Watch me delete this entire squad in 5 seconds. Lobby is chalked!" : "Perfect timing on the gas mask play. Clean wipe.",
+                visualPrompt: "warzone superstore squad wipe high intensity"
+            };
 
-                const isHype = state.projectSettings.hypeCommentary;
-                const script = {
-                    hook: isHype ? "YO! You won't believe what this tiny robot did!" : "In a world of giants, a small robot struggled.",
-                    body: isHype ? "He literally conquered the impossible. A total legend!" : "He found a way to reach the summit with a friend.",
-                    visualPrompt: "cinematic robot"
-                };
+            // STEP 2: ASSET MATCHING
+            setState(prev => ({ ...prev, loadingStep: 'matchmaking' }));
+            await new Promise(r => setTimeout(r, 800));
+            const selectedClip = matchGameplay(prompt);
 
-                setState(prev => ({ ...prev, loadingStep: 'matchmaking' }));
-                await new Promise(r => setTimeout(r, 600));
-                const template = findBestTemplate(prompt);
+            // STEP 3: ORCHESTRATION PLANNING
+            setState(prev => ({ ...prev, loadingStep: 'visuals' }));
+            await new Promise(r => setTimeout(r, 1200));
 
-                if (!template) {
-                    setState(prev => ({ ...prev, loadingStep: 'visuals' }));
-                    await new Promise(r => setTimeout(r, 1200));
+            const instruction: OrchestrationInstruction = {
+                highlight: {
+                    sourceFileId: selectedClip.id,
+                    startTimeSeconds: 15.5,
+                    endTimeSeconds: 28.2,
+                    reason: `Identified high-intensity kill sequence. Squad wipe detected via killfeed OCR simulation.`
+                },
+                reframing: {
+                    enabled: state.projectSettings.autoReframing,
+                    strategy: "follow_crosshair",
+                    cropKeyframes: [
+                        { timeSeconds: 0, x: 0.3, y: 0.2, width: 0.4, height: 0.7 },
+                        { timeSeconds: 5, x: 0.5, y: 0.2, width: 0.4, height: 0.7 }
+                    ]
+                },
+                voiceover: {
+                    enabled: state.projectSettings.hypeCommentary,
+                    script: script.hook + " " + script.body,
+                    startTimeSeconds: 0.5,
+                    endTimeSeconds: 7.5,
+                    tone: state.projectSettings.tonePreset
+                },
+                captions: [
+                    { startTimeSeconds: 0.5, endTimeSeconds: 3.5, text: script.hook, highlightWords: ["SAFE", "BRO"] },
+                    { startTimeSeconds: 3.8, endTimeSeconds: 7.5, text: script.body, highlightWords: ["DELETE", "LOBBY"] }
+                ],
+                memes: state.projectSettings.onScreenMemes ? [
+                    { enabled: true, startTimeSeconds: 4.5, endTimeSeconds: 6.5, text: "FRIED 💀", positionHint: "center" },
+                    { enabled: true, startTimeSeconds: 8.0, endTimeSeconds: 10.0, text: "SQUAD WIPE", positionHint: "top" }
+                ] : [],
+                tiktok: {
+                    captionText: `${script.hook} 💀🔥 #warzone #cod #squadwipe #fps #gaming`,
+                    primaryTags: ["#warzone", "#cod", "#gaming"],
+                    secondaryTags: ["#squadwipe", "#clutch", "#pz"]
                 }
+            };
 
-                setState(prev => ({ ...prev, loadingStep: 'audio' }));
-                await new Promise(r => setTimeout(r, 1000));
+            // STEP 4: AUDIO SYNCING
+            setState(prev => ({ ...prev, loadingStep: 'audio' }));
+            await new Promise(r => setTimeout(r, 1000));
 
-                const fullText = `${script.hook} ${script.body}`;
-                return {
-                    script,
-                    videoUrl: template?.url || 'https://videos.pexels.com/video-files/3254009/3254009-sd_540_960_25fps.mp4',
-                    audioUrl: 'https://cdn.pixabay.com/audio/2022/02/22/audio_d146c1b222.mp3',
-                    captions: [{ 
-                        line: fullText, 
-                        words: fullText.split(' ').map((w, i) => ({ word: w, start: i * 0.4, end: (i + 1) * 0.4 }))
-                    }],
-                    activeFeatures: { ...state.projectSettings }
-                } as GeneratedMedia;
-            });
+            const fullText = instruction.voiceover.script;
+            const words = fullText.split(' ');
+            
+            const media: GeneratedMedia = {
+                script,
+                videoUrl: selectedClip.url,
+                audioUrl: 'https://cdn.pixabay.com/audio/2022/02/22/audio_d146c1b222.mp3',
+                captions: [{ 
+                    line: fullText, 
+                    words: words.map((w, i) => ({ word: w, start: i * 0.4, end: (i + 1) * 0.4 }))
+                }],
+                activeFeatures: { ...state.projectSettings },
+                instruction
+            };
 
             setState(prev => ({ ...prev, isLoading: false, generatedMedia: media, loadingStep: 'done' }));
         } catch (e: any) {
@@ -120,9 +159,11 @@ export const useVideoEngine = () => {
         }
     };
 
-    const actions = {
-        generateContent,
-        toggleFeature,
+    return { 
+        state, 
+        generateContent, 
+        toggleFeature, 
+        setTonePreset,
         togglePlayPause: () => setState(prev => ({ ...prev, isPlaying: !prev.isPlaying })),
         applyFilter: (filter: Filter) => setState(prev => ({ ...prev, activeFilter: filter })),
         setExportOption: (opt: Partial<ExportOptions>) => setState(prev => ({ ...prev, exportOptions: { ...prev.exportOptions, ...opt } })),
@@ -135,6 +176,4 @@ export const useVideoEngine = () => {
             setTimeout(() => setState(prev => ({ ...prev, exportProgress: 0 })), 1000);
         }
     };
-
-    return { state, ...actions };
 };
