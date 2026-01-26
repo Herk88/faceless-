@@ -82,6 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ state, actions }) => {
                 <div className="bg-black/90 rounded-[2rem] border border-white/10 p-6 h-[600px] flex flex-col gap-4 shadow-2xl relative">
                     <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-green-500">
                         <span>// AUTOMATION PAYLOAD</span>
+                        <span className="bg-green-500/20 px-2 py-0.5 rounded text-[9px]">{generatedMedia?.instruction.provider?.toUpperCase() || 'GEMINI'}</span>
                     </div>
                     <div className="flex-grow overflow-auto scrollbar-hide">
                         <pre className="font-mono text-[11px] text-green-400/80 leading-relaxed">

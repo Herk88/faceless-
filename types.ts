@@ -17,6 +17,7 @@ export interface CaptionLine {
 }
 
 export type TonePreset = "aggressive" | "chill" | "cracked-movement";
+export type AIProvider = "gemini" | "openai";
 
 export interface ExecutionResult {
     command: string;
@@ -71,6 +72,7 @@ export interface OrchestrationInstruction {
   };
   ffmpegCommand?: string;
   execution?: ExecutionResult;
+  provider?: AIProvider;
 }
 
 export interface GeneratedMedia {
@@ -104,6 +106,7 @@ export interface AutomationFeatures {
     onScreenMemes: boolean;
     autoReframing: boolean;
     tonePreset: TonePreset;
+    provider: AIProvider;
 }
 
 export interface VideoTemplate {

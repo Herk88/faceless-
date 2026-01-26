@@ -2,7 +2,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { OrchestrationInstruction, TonePreset, AutomationFeatures } from "./types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+// Always use the API key directly from process.env.API_KEY
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const ORCHESTRATION_SCHEMA = {
   type: Type.OBJECT,
@@ -115,5 +116,6 @@ export const generateOrchestrationPlan = async (
     }
   });
 
+  // Directly access .text property
   return JSON.parse(response.text || "{}");
 };

@@ -1,10 +1,10 @@
 
 import { useState } from 'react';
-import { generateOrchestrationPlan } from './GeminiOrchestrator';
+import { generatePlan } from './orchestratorFactory';
 import { executeOrchestration } from './FFmpegWorker';
 import type { 
     GeneratedMedia, Filter, EngineState, LoadingStep, ExportOptions, 
-    VideoTemplate, AutomationFeatures, OrchestrationInstruction, TonePreset 
+    VideoTemplate, AutomationFeatures, OrchestrationInstruction, TonePreset, AIProvider 
 } from './types';
 
 const WARZONE_ASSET_LIBRARY: VideoTemplate[] = [
@@ -38,7 +38,8 @@ export const useVideoEngine = () => {
             hypeCommentary: true,
             onScreenMemes: true,
             autoReframing: true,
-            tonePreset: "aggressive"
+            tonePreset: "aggressive",
+            provider: ((process as any).env?.ORCHESTRATOR_PROVIDER as AIProvider) || "gemini"
         }
     });
 
@@ -49,7 +50,14 @@ export const useVideoEngine = () => {
         }));
     };
 
-    const toggleFeature = (feature: keyof Omit<AutomationFeatures, 'tonePreset'>) => {
+    const setProvider = (provider: AIProvider) => {
+        setState(prev => ({
+            ...prev,
+            projectSettings: { ...prev.projectSettings, provider }
+        }));
+    };
+
+    const toggleFeature = (feature: keyof Omit<AutomationFeatures, 'tonePreset' | 'provider'>) => {
         setState(prev => ({
             ...prev,
             projectSettings: {
@@ -65,7 +73,7 @@ export const useVideoEngine = () => {
         try {
             // STEP 1: ORCHESTRATION (THE BRAIN)
             setState(prev => ({ ...prev, loadingStep: 'script' }));
-            const plan = await generateOrchestrationPlan(prompt, state.projectSettings);
+            const plan = await generatePlan(state.projectSettings.provider, prompt, state.projectSettings);
 
             // STEP 2: ASSET MATCHING
             setState(prev => ({ ...prev, loadingStep: 'matchmaking' }));
@@ -109,6 +117,7 @@ export const useVideoEngine = () => {
         generateContent,
         toggleFeature,
         setTonePreset,
+        setProvider,
         togglePlayPause: () => setState(prev => ({ ...prev, isPlaying: !prev.isPlaying })),
         applyFilter: (filter: Filter) => setState(prev => ({ ...prev, activeFilter: filter })),
         setExportOption: (opt: Partial<ExportOptions>) => setState(prev => ({ ...prev, exportOptions: { ...prev.exportOptions, ...opt } })),

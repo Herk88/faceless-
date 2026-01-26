@@ -2,15 +2,16 @@
 import React, { useState } from 'react';
 import { ConnectionGrid } from './ConnectionGrid';
 import { ProgressStepper } from './ProgressStepper';
-import type { LoadingStep, AutomationFeatures, TonePreset } from '../types';
+import type { LoadingStep, AutomationFeatures, TonePreset, AIProvider } from '../types';
 
 interface PromptViewProps {
     generateContent: (prompt: string) => void;
     isLoading: boolean;
     loadingStep: LoadingStep;
     projectSettings: AutomationFeatures;
-    toggleFeature: (feature: keyof Omit<AutomationFeatures, 'tonePreset'>) => void;
+    toggleFeature: (feature: keyof Omit<AutomationFeatures, 'tonePreset' | 'provider'>) => void;
     setTonePreset: (tone: TonePreset) => void;
+    setProvider: (provider: AIProvider) => void;
 }
 
 const FeatureToggle: React.FC<{ 
@@ -35,11 +36,13 @@ const FeatureToggle: React.FC<{
     </button>
 );
 
-const ToneButton: React.FC<{ active: boolean; label: string; onClick: () => void }> = ({ active, label, onClick }) => (
+const SelectButton: React.FC<{ active: boolean; label: string; onClick: () => void; color?: string }> = ({ 
+    active, label, onClick, color = 'bg-purple-600 border-purple-400' 
+}) => (
     <button
         onClick={onClick}
         className={`flex-1 py-3 rounded-xl border text-[11px] font-black uppercase tracking-widest transition-all ${
-            active ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_20px_rgba(147,51,234,0.3)]' : 'bg-white/5 border-white/10 text-gray-500 hover:border-white/30'
+            active ? `${color} text-white shadow-lg` : 'bg-white/5 border-white/10 text-gray-500 hover:border-white/30'
         }`}
     >
         {label}
@@ -47,7 +50,7 @@ const ToneButton: React.FC<{ active: boolean; label: string; onClick: () => void
 );
 
 export const PromptView: React.FC<PromptViewProps> = ({ 
-    generateContent, isLoading, loadingStep, projectSettings, toggleFeature, setTonePreset 
+    generateContent, isLoading, loadingStep, projectSettings, toggleFeature, setTonePreset, setProvider 
 }) => {
     const [prompt, setPrompt] = useState('crazy squad wipe at superstore with movement');
 
@@ -65,12 +68,32 @@ export const PromptView: React.FC<PromptViewProps> = ({
                         <p className="text-gray-500 text-sm font-medium">Input your highlight criteria. Our pipeline handles the rest.</p>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Tone Preset</label>
-                        <div className="flex gap-3">
-                            <ToneButton label="Aggressive" active={projectSettings.tonePreset === 'aggressive'} onClick={() => setTonePreset('aggressive')} />
-                            <ToneButton label="Chill" active={projectSettings.tonePreset === 'chill'} onClick={() => setTonePreset('chill')} />
-                            <ToneButton label="Cracked" active={projectSettings.tonePreset === 'cracked-movement'} onClick={() => setTonePreset('cracked-movement')} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">AI Engine Provider</label>
+                            <div className="flex gap-3">
+                                <SelectButton 
+                                    label="Gemini" 
+                                    active={projectSettings.provider === 'gemini'} 
+                                    onClick={() => setProvider('gemini')}
+                                    color="bg-blue-600 border-blue-400"
+                                />
+                                <SelectButton 
+                                    label="OpenAI" 
+                                    active={projectSettings.provider === 'openai'} 
+                                    onClick={() => setProvider('openai')}
+                                    color="bg-green-700 border-green-500"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Tone Preset</label>
+                            <div className="flex gap-3">
+                                <SelectButton label="Aggressive" active={projectSettings.tonePreset === 'aggressive'} onClick={() => setTonePreset('aggressive')} />
+                                <SelectButton label="Chill" active={projectSettings.tonePreset === 'chill'} onClick={() => setTonePreset('chill')} />
+                                <SelectButton label="Cracked" active={projectSettings.tonePreset === 'cracked-movement'} onClick={() => setTonePreset('cracked-movement')} />
+                            </div>
                         </div>
                     </div>
                     
