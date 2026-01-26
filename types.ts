@@ -18,6 +18,13 @@ export interface CaptionLine {
 
 export type TonePreset = "aggressive" | "chill" | "cracked-movement";
 
+export interface ExecutionResult {
+    command: string;
+    exitCode: number;
+    logs: string;
+    outputUrl?: string;
+}
+
 export interface OrchestrationInstruction {
   highlight: {
     sourceFileId: string;
@@ -42,6 +49,7 @@ export interface OrchestrationInstruction {
     startTimeSeconds: number;
     endTimeSeconds: number;
     tone: string;
+    voice: string;
   };
   captions: {
     startTimeSeconds: number;
@@ -61,6 +69,8 @@ export interface OrchestrationInstruction {
     primaryTags: string[];
     secondaryTags: string[];
   };
+  ffmpegCommand?: string;
+  execution?: ExecutionResult;
 }
 
 export interface GeneratedMedia {
