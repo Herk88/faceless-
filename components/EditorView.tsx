@@ -6,7 +6,7 @@ import type { EngineState } from '../types';
 
 interface EditorViewProps {
     state: EngineState;
-    actions: any; // Simplified for brevity
+    actions: any;
 }
 
 const LoadingSpinner: React.FC = () => (
@@ -31,7 +31,6 @@ export const EditorView: React.FC<EditorViewProps> = ({ state, actions }) => {
 
     return (
         <main className="w-full flex flex-col lg:flex-row gap-4">
-            {/* Player Section */}
             <div className="flex-grow flex justify-center items-center relative w-full max-w-md mx-auto lg:mx-0">
                 <CanvasVideoEditor
                     media={generatedMedia}
@@ -54,7 +53,6 @@ export const EditorView: React.FC<EditorViewProps> = ({ state, actions }) => {
                     </div>
                 )}
             </div>
-            {/* Controls Section */}
             <Sidebar state={state} actions={actions} />
         </main>
     );

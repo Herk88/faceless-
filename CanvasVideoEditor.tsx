@@ -48,26 +48,41 @@ export const CanvasVideoEditor: React.FC<CanvasVideoEditorProps> = ({
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        const filterMap: Record<Filter, string> = { 'None': 'none', 'Noir': 'grayscale(100%) contrast(1.2)', 'Vintage': 'sepia(60%) contrast(0.9) brightness(1.1)' };
+        const filterMap: Record<Filter, string> = { 
+            'None': 'none', 
+            'Noir': 'grayscale(100%) contrast(1.2)', 
+            'Vintage': 'sepia(60%) contrast(0.9) brightness(1.1)' 
+        };
         ctx.filter = filterMap[filter] || 'none';
+        
+        // Draw main video
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         ctx.filter = 'none';
+
+        // Auto-Reframing Visual Guide (Subtle safe zone)
+        if (media.activeFeatures.autoReframing) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(canvas.width * 0.05, canvas.height * 0.05, canvas.width * 0.9, canvas.height * 0.9);
+        }
 
         const scaleFactor = canvas.width / BASE_WIDTH;
         const currentTime = audio.currentTime;
         const currentLine = media.captions[0];
         
-        ctx.font = `bold ${48 * scaleFactor}px Arial`;
+        // Memes Mode Font Upgrade
+        const isMemesMode = media.activeFeatures.onScreenMemes;
+        ctx.font = `bold ${isMemesMode ? 64 : 48 * scaleFactor}px ${isMemesMode ? 'Impact, Arial' : 'Arial'}`;
         ctx.textAlign = 'center';
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 8 * scaleFactor;
+        
         const x = canvas.width / 2;
         const y = canvas.height - (100 * scaleFactor);
         const lineMetrics = ctx.measureText(currentLine.line);
         let currentX = x - lineMetrics.width / 2;
 
         currentLine.words.forEach(({ word, start, end }) => {
-            const wordMetric = ctx.measureText(word);
             ctx.fillStyle = (currentTime >= start && currentTime < end) ? '#FBBF24' : 'white';
             const wordWidthWithSpace = ctx.measureText(word + ' ').width;
             ctx.strokeText(word, currentX + (wordWidthWithSpace - ctx.measureText(' ').width) / 2, y);
@@ -78,27 +93,14 @@ export const CanvasVideoEditor: React.FC<CanvasVideoEditorProps> = ({
         animationFrameId.current = requestAnimationFrame(draw);
     }, [media, filter]);
 
-    // Effect for handling media source changes
     useEffect(() => {
         const video = videoRef.current;
         const audio = audioRef.current;
         video.crossOrigin = "anonymous"; video.muted = true; video.loop = true;
         audio.crossOrigin = "anonymous";
         if (media) { video.src = media.videoUrl; audio.src = media.audioUrl; } 
-        else {
-            const canvas = canvasRef.current;
-            if (canvas) {
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.fillStyle = 'black'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = 'white'; ctx.font = '24px Arial'; ctx.textAlign = 'center';
-                    ctx.fillText('Generate a video to begin', canvas.width / 2, canvas.height / 2);
-                }
-            }
-        }
     }, [media]);
 
-    // Effect for playback and animation loop control
     useEffect(() => {
         const video = videoRef.current; const audio = audioRef.current;
         const startAnimation = () => { if (!animationFrameId.current) animationFrameId.current = requestAnimationFrame(draw); };
@@ -108,16 +110,13 @@ export const CanvasVideoEditor: React.FC<CanvasVideoEditorProps> = ({
         return stopAnimation;
     }, [isPlaying, isExporting, draw]);
 
-    // Effect for handling the export process
     useEffect(() => {
         if (isExporting && media && canvasRef.current) {
             const canvas = canvasRef.current;
             const originalWidth = canvas.width;
             const originalHeight = canvas.height;
-
             const { width: exportWidth, height: exportHeight } = resolutions[exportOptions.resolution];
-            canvas.width = exportWidth;
-            canvas.height = exportHeight;
+            canvas.width = exportWidth; canvas.height = exportHeight;
 
             const speechAudio = audioRef.current;
             speechAudio.currentTime = 0;
@@ -146,7 +145,7 @@ export const CanvasVideoEditor: React.FC<CanvasVideoEditorProps> = ({
                 const a = document.createElement('a');
                 a.href = url; a.download = `faceless-ai-video.${exportOptions.format}`; a.click();
                 URL.revokeObjectURL(url); audioContext.close();
-                canvas.width = originalWidth; canvas.height = originalHeight; // Restore canvas size
+                canvas.width = originalWidth; canvas.height = originalHeight;
                 onExportComplete();
             };
 
@@ -156,22 +155,36 @@ export const CanvasVideoEditor: React.FC<CanvasVideoEditorProps> = ({
             const progressInterval = setInterval(() => onExportProgress(speechAudio.currentTime / speechAudio.duration), 100);
             const handleAudioEnd = () => { videoRef.current.pause(); bgMusicAudio?.pause(); mediaRecorderRef.current?.stop(); if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; };
             speechAudio.addEventListener('ended', handleAudioEnd, { once: true });
-
             return () => { clearInterval(progressInterval); speechAudio.removeEventListener('ended', handleAudioEnd); mediaRecorderRef.current?.stop(); canvas.width = originalWidth; canvas.height = originalHeight; };
         }
     }, [isExporting, media, backgroundMusic, exportOptions, draw, onExportProgress, onExportComplete]);
 
     return (
-        <div className="aspect-[9/16] w-full max-w-full bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-2 relative group">
+        <div className="aspect-[9/16] w-full max-w-full bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-2 relative group overflow-hidden">
             <canvas ref={canvasRef} width={BASE_WIDTH} height={BASE_HEIGHT} className="rounded-lg w-full h-full object-contain" />
             
-            {/* Real-time Export Settings Overlay */}
-            <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md text-white/90 px-3 py-1.5 rounded-lg text-xs font-mono border border-white/10 shadow-lg pointer-events-none flex items-center gap-2 transition-opacity opacity-75 group-hover:opacity-100 z-10">
+            {/* Real-time Status Overlay */}
+            <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md text-white/90 px-3 py-1.5 rounded-lg text-xs font-mono border border-white/10 shadow-lg pointer-events-none flex items-center gap-2 z-10">
                 <div className={`w-2 h-2 rounded-full ${isExporting ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
                 <span>{exportOptions.format.toUpperCase()}</span>
                 <span className="text-white/40">|</span>
                 <span>{exportOptions.resolution}</span>
             </div>
+
+            {/* Active Features Badges */}
+            {media && (
+                <div className="absolute top-4 left-4 flex flex-col gap-1 z-10">
+                    {media.activeFeatures.hypeCommentary && (
+                        <div className="px-2 py-0.5 bg-pink-500/80 text-[8px] font-bold text-white rounded uppercase tracking-tighter shadow-sm">AI HYPE ACTIVE</div>
+                    )}
+                    {media.activeFeatures.autoReframing && (
+                        <div className="px-2 py-0.5 bg-blue-500/80 text-[8px] font-bold text-white rounded uppercase tracking-tighter shadow-sm">REFRAMED 9:16</div>
+                    )}
+                    {media.activeFeatures.onScreenMemes && (
+                        <div className="px-2 py-0.5 bg-yellow-500/80 text-[8px] font-bold text-black rounded uppercase tracking-tighter shadow-sm">MEME FONT ACTIVE</div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

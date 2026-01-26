@@ -21,6 +21,7 @@ export interface GeneratedMedia {
     videoUrl: string;
     audioUrl: string;
     captions: CaptionLine[];
+    activeFeatures: AutomationFeatures;
 }
 
 export type Filter = 'None' | 'Noir' | 'Vintage';
@@ -38,6 +39,12 @@ export type ExportResolution = '540p' | '720p';
 export interface ExportOptions {
     format: ExportFormat;
     resolution: ExportResolution;
+}
+
+export interface AutomationFeatures {
+    hypeCommentary: boolean;
+    onScreenMemes: boolean;
+    autoReframing: boolean;
 }
 
 export interface VideoTemplate {
@@ -58,4 +65,5 @@ export interface EngineState {
     exportProgress: number;
     backgroundMusic: BackgroundMusic;
     exportOptions: ExportOptions;
+    projectSettings: AutomationFeatures;
 }

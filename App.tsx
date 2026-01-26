@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useVideoEngine } from './useVideoEngine';
 import { EditorView } from './components/EditorView';
 import { PromptView } from './components/PromptView';
@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const App: React.FC = () => {
     const { state, ...actions } = useVideoEngine();
-    const { generatedMedia, isLoading, loadingStep } = state;
+    const { generatedMedia, isLoading, loadingStep, projectSettings } = state;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/50 to-gray-900 text-white font-sans flex flex-col items-center justify-center p-4 overflow-hidden">
@@ -30,7 +30,13 @@ const App: React.FC = () => {
                         transition={{ duration: 0.5 }}
                         className="w-full"
                     >
-                        <PromptView generateContent={actions.generateContent} isLoading={isLoading} loadingStep={loadingStep} />
+                        <PromptView 
+                            generateContent={actions.generateContent} 
+                            isLoading={isLoading} 
+                            loadingStep={loadingStep}
+                            projectSettings={projectSettings}
+                            toggleFeature={actions.toggleFeature}
+                        />
                     </motion.div>
                 ) : (
                     <motion.div
